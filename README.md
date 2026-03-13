@@ -122,3 +122,18 @@ VStack::new()
 ---
 
 By combining `winit`, `taffy`, `cosmic-text`, and a custom instanced-SDF `wgpu` renderer, this project can provide a native Rust UI stack with high throughput and low overhead.
+
+## Current Lightweight Core
+
+This repository now includes a minimal trait-first core crate (`slop_ui`) that is intentionally lightweight and fully feature-flagged.
+
+- `input`: enables input event dispatch and hit-testing helpers.
+- `layout`: enables pluggable layout via a `LayoutEngine` trait.
+- `text`: enables optional text collection/render hooks.
+
+Example:
+
+```bash
+cargo test
+cargo test --all-features
+```
