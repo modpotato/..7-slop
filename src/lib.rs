@@ -28,8 +28,10 @@ impl Rect {
         }
     }
 
+    /// Returns true when `(px, py)` is within the rectangle using half-open bounds:
+    /// `[x, x + width)` and `[y, y + height)`.
     pub fn contains(self, px: f32, py: f32) -> bool {
-        px >= self.x && px <= self.x + self.width && py >= self.y && py <= self.y + self.height
+        px >= self.x && px < self.x + self.width && py >= self.y && py < self.y + self.height
     }
 }
 
@@ -56,6 +58,9 @@ pub trait Widget {
     fn set_bounds(&mut self, bounds: Rect);
     fn draw(&self, target: &mut dyn RenderTarget);
 
+    /// Handles an input event.
+    ///
+    /// Return `true` to mark the event as handled and stop propagation.
     #[cfg(feature = "input")]
     fn on_input(&mut self, _event: &InputEvent) -> bool {
         false
@@ -69,6 +74,11 @@ pub trait Widget {
 
 #[cfg(feature = "layout")]
 pub trait LayoutEngine {
+    /// Computes a widget's new bounds.
+    ///
+    /// `index` is the widget's position in the `Ui` collection.
+    /// `current` is the widget's existing bounds.
+    /// The returned `Rect` becomes the widget's updated bounds.
     fn layout(&self, index: usize, current: Rect) -> Rect;
 }
 
@@ -93,6 +103,7 @@ impl Ui {
         self.widgets.push(Box::new(widget));
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.widgets.len()
     }
@@ -107,6 +118,7 @@ impl Ui {
         }
     }
 
+    #[must_use]
     pub fn widget_bounds(&self, index: usize) -> Option<Rect> {
         self.widgets.get(index).map(|widget| widget.bounds())
     }
@@ -121,11 +133,13 @@ impl Ui {
 
     #[cfg(feature = "input")]
     pub fn dispatch_input(&mut self, event: InputEvent) -> Option<WidgetId> {
+        let (x, y) = match event {
+            InputEvent::Click { x, y } | InputEvent::Move { x, y } => (x, y),
+        };
+
         for widget in self.widgets.iter_mut().rev() {
-            if let InputEvent::Click { x, y } = event {
-                if !widget.bounds().contains(x, y) {
-                    continue;
-                }
+            if !widget.bounds().contains(x, y) {
+                continue;
             }
 
             if widget.on_input(&event) {
@@ -137,6 +151,7 @@ impl Ui {
     }
 
     #[cfg(feature = "text")]
+    #[must_use]
     pub fn collect_text(&self) -> Vec<(WidgetId, String)> {
         self.widgets
             .iter()
@@ -240,11 +255,18 @@ mod tests {
     #[cfg(feature = "layout")]
     #[test]
     fn relayout_updates_widget_bounds() {
+        const X_SHIFT: f32 = 1.0;
+
         struct ShiftLayout;
 
         impl LayoutEngine for ShiftLayout {
-            fn layout(&self, index: usize, current: Rect) -> Rect {
-                Rect::new(current.x + index as f32 + 1.0, current.y, current.width, current.height)
+            fn layout(&self, _index: usize, current: Rect) -> Rect {
+                Rect::new(
+                    current.x + X_SHIFT,
+                    current.y,
+                    current.width,
+                    current.height,
+                )
             }
         }
 
@@ -289,6 +311,23 @@ mod tests {
 
         let handled = ui.dispatch_input(InputEvent::Click { x: 5.0, y: 5.0 });
         assert_eq!(handled, Some(WidgetId(2)));
+    }
+
+    #[cfg(feature = "input")]
+    #[test]
+    fn move_event_respects_hit_testing() {
+        let mut ui = Ui::new();
+        ui.push(TestWidget {
+            id: WidgetId(3),
+            bounds: Rect::new(0.0, 0.0, 10.0, 10.0),
+            color: Color([0.0, 0.0, 0.0, 1.0]),
+            captured: true,
+            #[cfg(feature = "text")]
+            text: None,
+        });
+
+        let handled = ui.dispatch_input(InputEvent::Move { x: 100.0, y: 100.0 });
+        assert_eq!(handled, None);
     }
 
     #[cfg(feature = "text")]
