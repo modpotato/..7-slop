@@ -108,6 +108,7 @@ impl Ui {
         self.widgets.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.widgets.is_empty()
     }
@@ -252,6 +253,18 @@ mod tests {
         assert_eq!(target.quads, 2);
     }
 
+    #[test]
+    fn rect_contains_uses_half_open_bounds() {
+        let rect = Rect::new(5.0, 10.0, 3.0, 2.0);
+        assert!(rect.contains(5.0, 10.0));
+        assert!(rect.contains(7.999, 11.999));
+
+        assert!(!rect.contains(8.0, 10.0));
+        assert!(!rect.contains(5.0, 12.0));
+        assert!(!rect.contains(4.999, 10.0));
+        assert!(!rect.contains(5.0, 9.999));
+    }
+
     #[cfg(feature = "layout")]
     #[test]
     fn relayout_updates_widget_bounds() {
@@ -311,6 +324,31 @@ mod tests {
 
         let handled = ui.dispatch_input(InputEvent::Click { x: 5.0, y: 5.0 });
         assert_eq!(handled, Some(WidgetId(2)));
+    }
+
+    #[cfg(feature = "input")]
+    #[test]
+    fn input_dispatch_falls_back_to_lower_widget_when_topmost_ignores() {
+        let mut ui = Ui::new();
+        ui.push(TestWidget {
+            id: WidgetId(1),
+            bounds: Rect::new(0.0, 0.0, 20.0, 20.0),
+            color: Color([0.0, 0.0, 0.0, 1.0]),
+            captured: true,
+            #[cfg(feature = "text")]
+            text: None,
+        });
+        ui.push(TestWidget {
+            id: WidgetId(2),
+            bounds: Rect::new(0.0, 0.0, 20.0, 20.0),
+            color: Color([0.0, 0.0, 0.0, 1.0]),
+            captured: false,
+            #[cfg(feature = "text")]
+            text: None,
+        });
+
+        let handled = ui.dispatch_input(InputEvent::Click { x: 5.0, y: 5.0 });
+        assert_eq!(handled, Some(WidgetId(1)));
     }
 
     #[cfg(feature = "input")]
