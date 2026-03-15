@@ -328,10 +328,10 @@ mod tests {
 
     #[cfg(feature = "input")]
     #[test]
-    fn input_dispatch_falls_back_to_lower_widget_when_topmost_ignores() {
+    fn input_dispatch_checks_lower_hit_widget_when_frontmost_declines() {
         let mut ui = Ui::new();
         ui.push(TestWidget {
-            id: WidgetId(1),
+            id: WidgetId(2),
             bounds: Rect::new(0.0, 0.0, 20.0, 20.0),
             color: Color([0.0, 0.0, 0.0, 1.0]),
             captured: true,
@@ -339,7 +339,7 @@ mod tests {
             text: None,
         });
         ui.push(TestWidget {
-            id: WidgetId(2),
+            id: WidgetId(1),
             bounds: Rect::new(0.0, 0.0, 20.0, 20.0),
             color: Color([0.0, 0.0, 0.0, 1.0]),
             captured: false,
@@ -348,7 +348,7 @@ mod tests {
         });
 
         let handled = ui.dispatch_input(InputEvent::Click { x: 5.0, y: 5.0 });
-        assert_eq!(handled, Some(WidgetId(1)));
+        assert_eq!(handled, Some(WidgetId(2)));
     }
 
     #[cfg(feature = "input")]
